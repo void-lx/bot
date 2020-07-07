@@ -58,13 +58,13 @@ function songClear() {
 //chama a função clear e disconecta o bot da sala
 async function songStop() {
     songClear();
-    const connection = await dClient.channels.cache.get(config.discord.SalaDeVoz).join();
+    const connection = await dClient.channels.cache.get(config.discord.VoiceChannel).join();
     connection.disconnect();
 }
 
 //manda feedback para os 2 clients
 function feedback(message) {
-    dClient.channels.cache.get(config.discord.SalaDeComando).send(message);
+    dClient.channels.cache.get(config.discord.TextChannel).send(message);
     tClient.say(config.twitch.Channel, message);
 }
 
@@ -95,7 +95,7 @@ async function songPlay() {
     if (songList.length > 0) {
         //console.log("debug songplay")
         //instancia a conexão
-        const connection = await dClient.channels.cache.get(config.discord.SalaDeVoz).join();
+        const connection = await dClient.channels.cache.get(config.discord.VoiceChannel).join();
         //tempo necessário para que a música não pule
         setTimeout(() => {
             const dispatcher = connection.play('./musicas/' + songList[0] + '.webm', {
@@ -229,7 +229,7 @@ dClient.on('message', async msg => {
             if (msg.member.voice.channel) {
                 is_srOn = true;
                 feedback("Song request está ativado")
-                const connection = await dClient.channels.cache.get(config.discord.SalaDeVoz).join();
+                const connection = await dClient.channels.cache.get(config.discord.VoiceChannel).join();
 
             } else {
                 msg.reply("você precisa estar conectado a um canal de voz.")
