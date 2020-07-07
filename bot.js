@@ -1,8 +1,20 @@
+/*###############################################
+TODO LIST
+sistema de votos
+checagem de permissões
+melhorar essa merda de código.
+
+as configuraçẽos de prefixo, tempo de threshold a musica, 
+tamanho da fila e tokens de acesso são feitas no config.json
+
+*/
+//lista de import
 const Discord = require('discord.js');
 const Twitch = require('tmi.js');
 const config = require('./config.json');
 const ytdl = require('youtube-dl')
 const fs = require('fs')
+//relay do irc twitch
 const tClient = new Twitch.Client({
     options: {
         debug: true
@@ -17,22 +29,21 @@ const tClient = new Twitch.Client({
     },
     channels: [config.twitch.Channel]
 });
+//discord
 const dClient = new Discord.Client();
-
+//var globais
 var songName;
 var songList = [];
 var is_srOn = false;
 
-/*TODO:
- *tocar a fila automaticamente
- implementar o vote skip
- implementar permissões por causa dos vacilão
-
- */
-function voteSkip() {}
-
+function voteSkip() {
+    //todo aqui
+}
+//limpa os arquivos baixados. streaming não estava funcionando bem.
 function songClear() {
+    //limpa a array de lista. implementar map() talvez?
     songList = [];
+
     fs.readdir('./musicas/', (err, files) => {
         if (err) throw err;
         for (const file of files) {
@@ -44,27 +55,30 @@ function songClear() {
     })
 }
 
+//chama a função clear e disconecta o bot da sala
 async function songStop() {
     songClear();
     const connection = await dClient.channels.cache.get(config.discord.SalaDeVoz).join();
     connection.disconnect();
 }
 
+//manda feedback para os 2 clients
 function feedback(message) {
     dClient.channels.cache.get(config.discord.SalaDeComando).send(message);
     tClient.say(config.twitch.Channel, message);
 }
 
+//skip
 async function songSkip() {
+    //checa se a lista não está vazia. 
     if (songList.length > 0) {
-        //console.log("debug skip")
         fs.unlink('./musicas/' + songList[0] + '.webm', (err) => {
             if (err) throw err;
             songList.shift();
             if (songList.length > 0) {
                 songPlay();
             }
-            if (songList.length == 0){
+            if (songList.length == 0) {
                 songStop();
             }
         })
@@ -75,21 +89,24 @@ async function songSkip() {
 
     }
 }
+
+//toca a música
 async function songPlay() {
     if (songList.length > 0) {
         //console.log("debug songplay")
+        //instancia a conexão
         const connection = await dClient.channels.cache.get(config.discord.SalaDeVoz).join();
+        //tempo necessário para que a música não pule
         setTimeout(() => {
             const dispatcher = connection.play('./musicas/' + songList[0] + '.webm', {
                 filter: 'audioonly'
             });
-            //console.log("debug songplay2")
-            //console.log(songList.length)
-            /*dispatcher.on("speaking", () => {
+            //eventos de listen a funçao play
+            /*console.log(songList.length)
+            dispatcher.on("speaking", () => {
                 console.log("speaking")
             })*/
             dispatcher.on("finish", () => {
-                //console.log("debug dispatcher event")
                 if (songList.length > 1) {
                     songSkip();
                 }
@@ -102,30 +119,35 @@ async function songPlay() {
     }
 }
 
+//baixa a música do song request
 async function songAdd(musica) {
+    //compara com o tamanho da fila setado no config
     if (songList.length < config.bot.Fila) {
+        //pega a info do arquivo no yt
         ytdl.getInfo('ytsearch:' + musica, ['--cache-dir=./cache'], function (err, info) {
             if (err) {
                 throw err
             }
+            //compara com o tempo setado no config
             if (info._duration_raw < config.bot.SrTempo * 60) {
+                //vê se a musica já está em execução ou se está na fila
                 if (songList.includes(info.title)) {
                     feedback('Esta música foi pedida muito recentemente. Por favor, tente outra ;)');
                 } else {
+                    //configuração do ytdl
                     const video = ytdl('ytsearch:' + musica,
                         ['--format=250'], {
                             cwd: __dirname
                         })
+                    //evento de download do arquivo no yt
                     video.on('info', function (info) {
                         songName = info.title
                         songList.push(songName);
+                        //pipe de download do writestream
                         video.pipe(fs.createWriteStream('./musicas/' + songName + '.webm'))
                         feedback('A música ' + songName + ' foi adicionada');
-                        //console.log("debug add 1")
-                        //console.log(songList.length)
                         if (songList.length == 1) {
-                            //console.log(songList.length)
-                            //console.log("debug add2")
+                            //chama o songplay pra iniciar o loop de musicas
                             songPlay();
                         }
                     })
@@ -139,6 +161,7 @@ async function songAdd(musica) {
     }
 }
 
+//organiza a lista para display
 function songQueue() {
     var string = "------------------------\n"
     for (i = 0; i < songList.length; i++) {
@@ -150,11 +173,15 @@ function songQueue() {
     return string;
 }
 
+//evento on message do chat da twitch
 tClient.on('message', (channel, tags, message, self) => {
 
+    //manda um salve
     if (message.toLowerCase() === "salve") {
         tClient.say(channel, `Saaaaalve meu parça @${tags.username}!`);
     };
+
+    //pede a música 
     if (message.startsWith(config.bot.Prefix + "sr ")) {
         if (is_srOn == true) {
             songAdd(message.substr(4));
@@ -162,19 +189,26 @@ tClient.on('message', (channel, tags, message, self) => {
             feedback("Song request desativado no momento")
         }
     }
+
+    //display da lista de musicas
     if (message.toLowerCase() === config.bot.Prefix + "lista") {
         tClient.say(channel, songQueue())
     }
 });
 
+//evento onready do discord
 dClient.on('ready', () => {
+    //limpa as musicas que eventualmente fiquem no cache caso o app de um crash
     songClear();
 });
 
+//evento on message
 dClient.on('message', async msg => {
     if (msg.content.toLowerCase() === (config.bot.Prefix + "limpar")) {
         msg.reply("falta o parâmetro número de mensagens.")
     }
+
+    //comando limpar. aceita valores entre 1 e 99
     if (msg.content.toLowerCase().startsWith(config.bot.Prefix + "limpar ")) {
         async function clear(num) {
             if (num > 0 && num < 100) {
@@ -187,6 +221,9 @@ dClient.on('message', async msg => {
         }
         clear(msg.content.substr(8));
     }
+
+    //chama o bot para a sala e libera o song request
+    //implementar checagem de admin
     if (msg.content.toLowerCase() === (config.bot.Prefix + "vem")) {
         if (msg.guild) {
             if (msg.member.voice.channel) {
@@ -199,10 +236,8 @@ dClient.on('message', async msg => {
             }
         }
     }
-    if (msg.content.toLowerCase() === ("!play")) {
-        songPlay();
-    }
 
+    //song request .
     if (msg.content.startsWith(config.bot.Prefix + "sr ")) {
         if (is_srOn == true) {
             songAdd(msg.content.substr(4))
@@ -211,6 +246,8 @@ dClient.on('message', async msg => {
         }
     }
 
+    //tira o bot do canal de voz e bloqueia o sr
+    //implementar checagem de admin
     if (msg.content.toLowerCase() === config.bot.Prefix + "vaza") {
         //checar autoridade do canal    
         is_srOn = false
@@ -219,6 +256,7 @@ dClient.on('message', async msg => {
     }
 
 
+    //skip song
     if (msg.content.toLowerCase() === config.bot.Prefix + "skip") {
         if (is_srOn == true) {
             songSkip();
@@ -228,18 +266,12 @@ dClient.on('message', async msg => {
         }
 
     }
-    if (msg.content.toLowerCase() === "!debug") {
-        //console.log("debugging...");
-        //console.log("song list length: " + songList.length)
-        for (i in songList) {
-            //console.log("songlist " + i + songList[i])
-        }
-    }
 
+    //display da lista de musicas
     if (msg.content.toLowerCase() === (config.bot.Prefix + "lista")) {
         msg.reply(`lista de músicas: \n` + songQueue());
     }
 });
-
+//inicia os clients
 tClient.connect();
 dClient.login(config.discord.DiscordToken);
