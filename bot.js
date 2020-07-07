@@ -1,7 +1,5 @@
 /*###############################################
 TODO LIST
-sistema de votos
-checagem de permissões
 melhorar essa merda de código.
 
 as configuraçẽos de prefixo, tempo de threshold a musica, 
@@ -203,7 +201,7 @@ tClient.on('message', (channel, tags, message, self) => {
         if (is_srOn) {
             songAdd(message.substr(4));
         } else {
-            feedback("Song request desativado no momento")
+            //feedback("Song request desativado no momento")
         }
     }
 
@@ -226,7 +224,7 @@ dClient.on('message', async msg => {
     }
 
     //comando limpar. aceita valores entre 1 e 99
-    if (msg.content.toLowerCase().startsWith(config.bot.Prefix + "limpar ")) {
+    if (msg.content.toLowerCase().startsWith(config.bot.Prefix + "limpar ") && msg.member.hasPermission('BAN_MEMBERS','KICK_MEMBERS')) {
         async function clear(num) {
             if (num > 0 && num < 100) {
                 try {
@@ -237,6 +235,8 @@ dClient.on('message', async msg => {
             }
         }
         clear(msg.content.substr(8));
+    } else {
+        msg.reply("Sem permissões para a ação");
     }
 
     //chama o bot para a sala e libera o song request
@@ -254,10 +254,10 @@ dClient.on('message', async msg => {
 
     //song request .
     if (msg.content.startsWith(config.bot.Prefix + "sr ")) {
-        if (is_srOn == true) {
+        if (is_srOn) {
             songAdd(msg.content.substr(4))
         } else {
-            feedback("Song request desativado no momento")
+            //feedback("Song request desativado no momento")
         }
     }
 
@@ -273,7 +273,7 @@ dClient.on('message', async msg => {
     //skip song
     if (msg.content.toLowerCase() === config.bot.Prefix + "skip") {
         if (msg.member.hasPermission('BAN_MEMBERS', 'KICK_MEMBERS')) {
-            if (is_srOn == true) {
+            if (is_srOn) {
                 songSkip();
             } else {
                 feedback("Song request desativado no momento")
