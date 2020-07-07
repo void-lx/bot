@@ -34,7 +34,8 @@ const dClient = new Discord.Client();
 //var globais
 var songName;
 var songList = [];
-var is_srOn = false;
+var votecache = [];
+var is_srOn = true;
 
 function voteSkip() {
     //todo aqui
@@ -93,6 +94,8 @@ async function songSkip() {
 //toca a música
 async function songPlay() {
     if (songList.length > 0) {
+        //reseta o cache de votos
+        votecache = [];
         //console.log("debug songplay")
         //instancia a conexão
         const connection = await dClient.channels.cache.get(config.discord.VoiceChannel).join();
@@ -176,14 +179,28 @@ function songQueue() {
 //evento on message do chat da twitch
 tClient.on('message', (channel, tags, message, self) => {
 
-    //manda um salve
-    if (message.toLowerCase() === "salve") {
-        tClient.say(channel, `Saaaaalve meu parça @${tags.username}!`);
-    };
+    if (message.toLowerCase() === (config.bot.Prefix + 'skip')) {
+        if (is_srOn) {
+            //checa se o maladrinho já voltou
+            if (votecache.includes(tags.username)) {
+                tClient.say(channel, `@${tags.username} Você já votou, malandrinho!!`)
+            } else {
+                //add o nome do malandrinho no cache
+                votecache.push(tags.username)
+                //checa se malandrinhos suficientes já votaram
+                if (votecache.length == config.bot.Votes) {
+                    songSkip();
+                }
+            }
+            if (tags.username == config.twitch.Channel && is_srOn) {
+                songSkip();
+            }
+        }
+    }
 
     //pede a música 
     if (message.startsWith(config.bot.Prefix + "sr ")) {
-        if (is_srOn == true) {
+        if (is_srOn) {
             songAdd(message.substr(4));
         } else {
             feedback("Song request desativado no momento")
@@ -223,14 +240,12 @@ dClient.on('message', async msg => {
     }
 
     //chama o bot para a sala e libera o song request
-    //implementar checagem de admin
     if (msg.content.toLowerCase() === (config.bot.Prefix + "vem")) {
-        if (msg.guild) {
+        if (msg.guild && msg.member.hasPermission('BAN_MEMBERS', 'KICK_MEMBERS')) {
             if (msg.member.voice.channel) {
                 is_srOn = true;
                 feedback("Song request está ativado")
                 const connection = await dClient.channels.cache.get(config.discord.VoiceChannel).join();
-
             } else {
                 msg.reply("você precisa estar conectado a um canal de voz.")
             }
@@ -247,24 +262,23 @@ dClient.on('message', async msg => {
     }
 
     //tira o bot do canal de voz e bloqueia o sr
-    //implementar checagem de admin
     if (msg.content.toLowerCase() === config.bot.Prefix + "vaza") {
-        //checar autoridade do canal    
-        is_srOn = false
-        feedback("Song request desativado")
-        songStop();
+        if (msg.member.hasPermission('BAN_MEMBERS', 'KICK_MEMBERS')) {
+            is_srOn = false
+            feedback("Song request desativado")
+            songStop();
+        }
     }
-
 
     //skip song
     if (msg.content.toLowerCase() === config.bot.Prefix + "skip") {
-        if (is_srOn == true) {
-            songSkip();
-
-        } else {
-            feedback("Song request desativado no momento")
-        }
-
+        if (msg.member.hasPermission('BAN_MEMBERS', 'KICK_MEMBERS')) {
+            if (is_srOn == true) {
+                songSkip();
+            } else {
+                feedback("Song request desativado no momento")
+            }
+        } else {}
     }
 
     //display da lista de musicas
