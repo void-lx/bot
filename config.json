@@ -1,0 +1,20 @@
+{
+    "bot": {
+        "Prefix": "!",
+        "SrTempo" : "8",
+        "Fila" : "15"
+
+    },
+    "discord": {
+        "DiscordToken": "",
+        "TextChannel": "",
+        "VoiceChannel" : ""
+    },
+
+    "twitch": {
+        "Token": "oauth:",
+        "Username": "",
+        "Channel": ""
+    }
+
+}
