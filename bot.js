@@ -33,11 +33,8 @@ const dClient = new Discord.Client();
 var songName;
 var songList = [];
 var votecache = [];
-var is_srOn = true;
+var is_srOn = false;
 
-function voteSkip() {
-    //todo aqui
-}
 //limpa os arquivos baixados. streaming não estava funcionando bem.
 function songClear() {
     //limpa a array de lista. implementar map() talvez?
@@ -108,7 +105,7 @@ async function songPlay() {
                 console.log("speaking")
             })*/
             dispatcher.on("finish", () => {
-                if (songList.length > 1) {
+                if (songList.length >= 1) {
                     songSkip();
                 }
             });
@@ -137,12 +134,13 @@ async function songAdd(musica) {
                 } else {
                     //configuração do ytdl
                     const video = ytdl('ytsearch:' + musica,
-                        ['--format=250'], {
+                        ['--format=251'], {
                             cwd: __dirname
                         })
                     //evento de download do arquivo no yt
                     video.on('info', function (info) {
                         songName = info.title
+                        fs.writeFile(songName)
                         songList.push(songName);
                         //pipe de download do writestream
                         video.pipe(fs.createWriteStream('./musicas/' + songName + '.webm'))
